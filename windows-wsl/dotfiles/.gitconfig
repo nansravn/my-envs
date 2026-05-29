@@ -1,0 +1,33 @@
+[init]
+	defaultBranch = main
+[pull]
+	rebase = true
+[push]
+	autoSetupRemote = true
+	default = simple
+[fetch]
+	prune = true
+[rebase]
+	autoStash = true
+[color]
+	ui = auto
+[core]
+	editor = nano
+[alias]
+	st = status
+	co = checkout
+	br = branch
+	ci = commit
+	lg = log --oneline --graph --decorate --all
+	last = log -1 HEAD
+	unstage = reset HEAD --
+	amend = commit --amend --no-edit
+[user]
+	name = Renan Vilas Novas
+	email = vnovas.renan@gmail.com
+[credential "https://github.com"]
+	helper = 
+	helper = !/home/renanvn/.local/bin/gh auth git-credential
+[credential "https://gist.github.com"]
+	helper = 
+	helper = !/home/renanvn/.local/bin/gh auth git-credential
