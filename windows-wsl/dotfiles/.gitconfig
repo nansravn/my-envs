@@ -24,7 +24,7 @@
 	amend = commit --amend --no-edit
 [user]
 	name = Renan Vilas Novas
-	email = vnovas.renan@gmail.com
+	email = your-email@example.com
 [credential "https://github.com"]
 	helper = 
 	helper = !/home/renanvn/.local/bin/gh auth git-credential

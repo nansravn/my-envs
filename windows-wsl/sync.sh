@@ -10,7 +10,9 @@ WT_SRC="/mnt/c/Users/vnova/AppData/Local/Packages/Microsoft.WindowsTerminal_8wek
 cp "$HOME/.zshrc"                 "$DOT/.zshrc"
 cp "$HOME/.bashrc"                "$DOT/.bashrc"
 cp "$HOME/.tmux.conf"             "$DOT/.tmux.conf"
-cp "$HOME/.gitconfig"             "$DOT/.gitconfig"
+# Scrub the personal email to a placeholder so it never lands in the repo
+sed -E 's/^([[:space:]]*email[[:space:]]*=).*/\1 your-email@example.com/' \
+    "$HOME/.gitconfig" > "$DOT/.gitconfig"
 cp "$HOME/.config/starship.toml" "$DOT/.config/starship.toml"
 [ -f "$WT_SRC" ] && cp "$WT_SRC" "$HERE/windows-terminal/settings.json"
 
