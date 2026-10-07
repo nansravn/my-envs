@@ -9,6 +9,7 @@ and to **sync** local changes back into the repo.
 | Folder | Description |
 | ------ | ----------- |
 | [`windows-wsl/`](./windows-wsl) | Windows laptop, Ubuntu (WSL2) + Windows Terminal. zsh + Starship + modern CLI/Python kit. |
+| [`macbook-work/`](./macbook-work) | Google corporate MacBook (gMac). zsh + Oh My Posh (`atomic_renan`) + Homebrew + modern CLI/AI agent kit + gMac migration framework. |
 
 ## Conventions
 

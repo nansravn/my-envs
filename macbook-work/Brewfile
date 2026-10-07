@@ -1,0 +1,83 @@
+# =============================================================================
+# Brewfile — macbook-work (Google Corporate MacBook / gMac)
+# =============================================================================
+
+tap "hashicorp/tap"
+tap "jandedobbeleer/oh-my-posh"
+
+# -----------------------------------------------------------------------------
+# Prompt, Shell & Modern CLI Kit (Parity with windows-wsl)
+# -----------------------------------------------------------------------------
+brew "jandedobbeleer/oh-my-posh/oh-my-posh"
+brew "zsh-autosuggestions"
+brew "zsh-syntax-highlighting"
+brew "fzf"
+brew "zoxide"
+brew "eza"
+brew "bat"
+brew "fd"
+brew "ripgrep"
+brew "tmux"
+brew "jq"
+brew "tree"
+
+# -----------------------------------------------------------------------------
+# AI, Cloud, Kubernetes & Developer Tools
+# -----------------------------------------------------------------------------
+brew "gemini-cli"
+brew "gh"
+brew "go"
+brew "kubernetes-cli"
+brew "minikube"
+brew "node"
+brew "pdm"
+brew "python@3.10"
+brew "skaffold"
+
+# -----------------------------------------------------------------------------
+# Media, Graphics & Document Tools
+# -----------------------------------------------------------------------------
+brew "cairo"
+brew "ffmpeg"
+brew "portaudio"
+brew "typst"
+
+# -----------------------------------------------------------------------------
+# Casks (CLI / SDKs / Fonts)
+# -----------------------------------------------------------------------------
+cask "claude-code"
+cask "dotnet-sdk"
+cask "dotnet-sdk@8"
+cask "dotnet-sdk@9"
+cask "gcloud-cli"
+cask "font-meslo-lg-nerd-font"
+
+# -----------------------------------------------------------------------------
+# VS Code / Jetski Extensions
+# -----------------------------------------------------------------------------
+vscode "bierner.markdown-mermaid"
+vscode "esbenp.prettier-vscode"
+vscode "github.remotehub"
+vscode "github.vscode-github-actions"
+vscode "github.vscode-pull-request-github"
+vscode "gitlab.gitlab-workflow"
+vscode "google.geminicodeassist"
+vscode "minherz.copyright-inserter"
+vscode "mohsen1.prettify-json"
+vscode "ms-dotnettools.csdevkit"
+vscode "ms-dotnettools.csharp"
+vscode "ms-dotnettools.vscode-dotnet-runtime"
+vscode "ms-python.debugpy"
+vscode "ms-python.python"
+vscode "ms-python.vscode-pylance"
+vscode "ms-python.vscode-python-envs"
+vscode "ms-toolsai.jupyter"
+vscode "ms-toolsai.jupyter-keymap"
+vscode "ms-toolsai.jupyter-renderers"
+vscode "ms-toolsai.vscode-jupyter-cell-tags"
+vscode "ms-toolsai.vscode-jupyter-slideshow"
+vscode "ms-vscode.azure-repos"
+vscode "ms-vscode.remote-repositories"
+vscode "samuelcolvin.jinjahtml"
+vscode "saoudrizwan.claude-dev"
+vscode "tomoki1207.pdf"

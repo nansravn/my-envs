@@ -1,2 +1,14 @@
 *.bak
 *.pre-bootstrap.bak
+.DS_Store
+*.bundle
+*.tar.gz
+*.patch
+.env
+.netrc
+*oauth-token*
+id_rsa*
+id_ed25519*
+id_ecdsa*
+google_compute_engine*
+sk-passwords
