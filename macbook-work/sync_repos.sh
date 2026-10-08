@@ -9,17 +9,16 @@
 #   4. untracked-dir  : Project directory without a .git folder
 #
 # Usage:
-#   ./scripts/sync_repos.sh scan           # Generate inventory/repos_manifest.tsv
-#   ./scripts/sync_repos.sh pack-dirty     # Export bundles & tarballs to Google Drive
-#   ./scripts/sync_repos.sh clone-clean    # Clone all remote-backed repos on New gMac
-#   ./scripts/sync_repos.sh restore-dirty  # Unpack bundles & tarballs from Google Drive
-#   ./scripts/sync_repos.sh restore-all    # Run clone-clean + restore-dirty
+#   ./sync_repos.sh scan           # Generate repos_manifest.tsv
+#   ./sync_repos.sh pack-dirty     # Export bundles & tarballs to Google Drive
+#   ./sync_repos.sh clone-clean    # Clone all remote-backed repos on New gMac
+#   ./sync_repos.sh restore-dirty  # Unpack bundles & tarballs from Google Drive
+#   ./sync_repos.sh restore-all    # Run clone-clean + restore-dirty
 # =============================================================================
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROFILE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-MANIFEST="$PROFILE_DIR/inventory/repos_manifest.tsv"
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+MANIFEST="$HERE/repos_manifest.tsv"
 
 # Default Google Drive backup path on corporate gMac
 DEFAULT_GDRIVE="$HOME/My Drive (renanvn@google.com)/gmac-migration-backup"
@@ -29,7 +28,6 @@ fi
 BACKUP_DIR="${GMAC_BACKUP_DIR:-$DEFAULT_GDRIVE}"
 
 scan_repos() {
-  mkdir -p "$(dirname "$MANIFEST")"
   printf "rel_path\tcategory\tremote_url\tbranch\tdirty_count\tunpushed_count\n" > "$MANIFEST"
 
   for base in GitHub GitLab; do
@@ -39,10 +37,12 @@ scan_repos() {
       name="$(basename "$dir")"
       rel_path="$base/$name"
 
-      # Skip my-envs itself from migration manifest
-      if [ "$rel_path" = "GitHub/my-envs" ]; then
-        continue
-      fi
+      # Skip self, Homebrew-managed SDKs, and legacy theme folder already in dotfiles/
+      case "$rel_path" in
+        GitHub/my-envs|GitLab/google-cloud-sdk|GitLab/terminal-configuration)
+          continue
+          ;;
+      esac
 
       if [ -d "$dir/.git" ]; then
         remote_url="$(git -C "$dir" remote get-url origin 2>/dev/null || echo "NONE")"
@@ -76,6 +76,38 @@ scan_repos() {
   awk -F'\t' 'NR>1 {count[$2]++} END {for (c in count) printf "   - %-15s: %d\n", c, count[c]}' "$MANIFEST" | sort
 }
 
+pack_dirty_overlay() {
+  local src_dir="$1"
+  local archive_path="$2"
+  local include_git_dirty="${3:-1}"
+  local existing_list
+  existing_list="$(mktemp)"
+
+  while IFS= read -r -d '' rel_file; do
+    if [ -n "$rel_file" ] && [ -e "$src_dir/$rel_file" ]; then
+      printf "%s\0" "$rel_file" >> "$existing_list"
+    fi
+  done < <({
+    if [ "$include_git_dirty" = "1" ]; then
+      git -C "$src_dir" diff --name-only -z HEAD 2>/dev/null || \
+        git -C "$src_dir" diff --name-only --cached -z 2>/dev/null || true
+      git -C "$src_dir" ls-files -z --modified --others --exclude-standard 2>/dev/null || true
+    fi
+    (
+      cd "$src_dir" && find . \
+        \( -name '.git' -o -name 'node_modules' -o -name '.venv' -o -name 'venv' -o -name '__pycache__' -o -name '.terraform' -o -name '.next' \) -prune \
+        -o -type f \( -name '.env' -o -name '.env.*' \) ! -name '*.example' ! -name '*-example' -print0 2>/dev/null
+    )
+  } | while IFS= read -r -d '' item; do
+    printf "%s\0" "${item#./}"
+  done | sort -zu)
+
+  if [ -s "$existing_list" ]; then
+    tar -czf "$archive_path" --null -C "$src_dir" -T "$existing_list" 2>/dev/null || true
+  fi
+  rm -f "$existing_list"
+}
+
 pack_dirty() {
   [ -f "$MANIFEST" ] || scan_repos
   echo "==> Backing up dirty/local repositories and workspace configs to:"
@@ -87,16 +119,14 @@ pack_dirty() {
     src_dir="$HOME/$rel_path"
     safe_name="${rel_path//\//__}"
 
-    if [ ! -d "$src_dir" ]; then
-      continue
-    fi
+    [ -d "$src_dir" ] || continue
 
     case "$category" in
       clean)
-        # Check if it has a local .env (like GitHub/dev_env/.env)
-        if [ -f "$src_dir/.env" ]; then
-          echo "   [env]     Saving $rel_path/.env"
-          cp "$src_dir/.env" "$BACKUP_DIR/extras/${safe_name}.env"
+        # Pack any gitignored .env / .env.* files (including nested subdirectories)
+        pack_dirty_overlay "$src_dir" "$BACKUP_DIR/overlays/${safe_name}.tar.gz" 0
+        if [ -f "$BACKUP_DIR/overlays/${safe_name}.tar.gz" ]; then
+          echo "   [env-overlay]  Saved .env* files for $rel_path"
         fi
         ;;
       dirty-remote)
@@ -104,27 +134,16 @@ pack_dirty() {
         if [ "$unpushed_count" -gt 0 ] && git -C "$src_dir" rev-parse HEAD >/dev/null 2>&1; then
           git -C "$src_dir" bundle create "$BACKUP_DIR/bundles/${safe_name}.bundle" --all >/dev/null 2>&1 || true
         fi
-        if [ "$dirty_count" -gt 0 ]; then
-          git -C "$src_dir" ls-files -z --modified --others --exclude-standard | \
-            tar -czf "$BACKUP_DIR/overlays/${safe_name}.tar.gz" --null -C "$src_dir" -T - 2>/dev/null || true
-        fi
+        pack_dirty_overlay "$src_dir" "$BACKUP_DIR/overlays/${safe_name}.tar.gz" 1
         ;;
       local-git)
         echo "   [local-git]    Packing $rel_path (dirty=$dirty_count, commits=$unpushed_count)..."
         if git -C "$src_dir" rev-parse HEAD >/dev/null 2>&1; then
           git -C "$src_dir" bundle create "$BACKUP_DIR/bundles/${safe_name}.bundle" --all >/dev/null 2>&1 || true
         fi
-        if [ "$dirty_count" -gt 0 ]; then
-          git -C "$src_dir" ls-files -z --modified --others --exclude-standard | \
-            tar -czf "$BACKUP_DIR/overlays/${safe_name}.tar.gz" --null -C "$src_dir" -T - 2>/dev/null || true
-        fi
+        pack_dirty_overlay "$src_dir" "$BACKUP_DIR/overlays/${safe_name}.tar.gz" 1
         ;;
       untracked-dir)
-        # Skip google-cloud-sdk inside ~/GitLab since gcloud-cli cask installs it cleanly
-        if [ "$rel_path" = "GitLab/google-cloud-sdk" ]; then
-          echo "   [skip]         Skipping GitLab/google-cloud-sdk (managed via Homebrew cask gcloud-cli)"
-          continue
-        fi
         echo "   [archive]      Packing non-git folder $rel_path..."
         tar -czf "$BACKUP_DIR/untracked_dirs/${safe_name}.tar.gz" \
           --exclude='node_modules' \
@@ -138,10 +157,12 @@ pack_dirty() {
     esac
   done < "$MANIFEST"
 
-  # Also pack cowork_workspace skills & custom-ca.pem if present
   if [ -d "$HOME/cowork_workspace/skills" ]; then
-    echo "   [extra]   Packing ~/cowork_workspace/skills..."
+    echo "   [extra]        Packing ~/cowork_workspace/skills..."
     tar -czf "$BACKUP_DIR/extras/cowork_skills.tar.gz" -C "$HOME" "cowork_workspace/skills" 2>/dev/null || true
+  fi
+  if [ -f "$HOME/cowork_workspace/AGENTS.md" ]; then
+    cp "$HOME/cowork_workspace/AGENTS.md" "$BACKUP_DIR/extras/cowork_AGENTS.md"
   fi
   if [ -f "$HOME/custom-ca.pem" ]; then
     cp "$HOME/custom-ca.pem" "$BACKUP_DIR/extras/custom-ca.pem"
@@ -185,7 +206,6 @@ restore_dirty() {
 
   echo "==> Restoring local git repos, dirty overlays, and non-git folders from $BACKUP_DIR..."
 
-  # 1. Restore local-git bundles first
   while IFS=$'\t' read -r rel_path category remote_url branch dirty_count unpushed_count; do
     [ "$rel_path" = "rel_path" ] && continue
     safe_name="${rel_path//\//__}"
@@ -198,39 +218,52 @@ restore_dirty() {
         rm -rf "$target_dir"
         git clone "$BACKUP_DIR/bundles/${safe_name}.bundle" "$target_dir" 2>/dev/null || mkdir -p "$target_dir"
       fi
-    elif [ "$category" = "dirty-remote" ] && [ -f "$BACKUP_DIR/bundles/${safe_name}.bundle" ] && [ -d "$target_dir/.git" ]; then
-      echo "   [bundle]  Fetching unpushed commits for $rel_path..."
-      git -C "$target_dir" fetch "$BACKUP_DIR/bundles/${safe_name}.bundle" "$branch" 2>/dev/null && \
-        git -C "$target_dir" checkout "$branch" 2>/dev/null && \
-        git -C "$target_dir" merge --ff-only FETCH_HEAD 2>/dev/null || true
+      if [ ! -d "$target_dir/.git" ]; then
+        echo "   [init]    Initializing 0-commit local git repo $rel_path (${branch:-main})..."
+        git -C "$target_dir" init -b "${branch:-main}" >/dev/null 2>&1 || git -C "$target_dir" init >/dev/null 2>&1
+      fi
+    elif [ "$category" = "dirty-remote" ] && [ -d "$target_dir/.git" ]; then
+      if [ -f "$BACKUP_DIR/bundles/${safe_name}.bundle" ] && [ "$branch" != "NONE" ] && [ "$branch" != "HEAD" ]; then
+        echo "   [bundle]  Fetching unpushed commits for $rel_path ($branch)..."
+        if git -C "$target_dir" fetch "$BACKUP_DIR/bundles/${safe_name}.bundle" "$branch" >/dev/null 2>&1; then
+          if git -C "$target_dir" checkout "$branch" >/dev/null 2>&1; then
+            git -C "$target_dir" merge --ff-only FETCH_HEAD >/dev/null 2>&1 || true
+          else
+            git -C "$target_dir" checkout -B "$branch" FETCH_HEAD >/dev/null 2>&1 || true
+          fi
+        fi
+      elif [ "$branch" != "NONE" ] && [ "$branch" != "HEAD" ]; then
+        git -C "$target_dir" checkout "$branch" >/dev/null 2>&1 || true
+      fi
+    elif [ "$category" = "clean" ] && [ -d "$target_dir/.git" ] && [ "$branch" != "NONE" ] && [ "$branch" != "HEAD" ]; then
+      git -C "$target_dir" checkout "$branch" >/dev/null 2>&1 || true
     fi
 
-    # Unpack working tree overlay for dirty-remote and local-git
-    if [ "$category" = "dirty-remote" ] || [ "$category" = "local-git" ]; then
-      if [ -f "$BACKUP_DIR/overlays/${safe_name}.tar.gz" ]; then
-        echo "   [overlay] Restoring modified/untracked files for $rel_path..."
-        mkdir -p "$target_dir"
+    if [ "$category" = "clean" ] || [ "$category" = "dirty-remote" ] || [ "$category" = "local-git" ]; then
+      if [ -f "$BACKUP_DIR/overlays/${safe_name}.tar.gz" ] && [ -d "$target_dir" ]; then
+        echo "   [overlay] Restoring modified/untracked/.env* files for $rel_path..."
         tar -xzf "$BACKUP_DIR/overlays/${safe_name}.tar.gz" -C "$target_dir"
       fi
     fi
 
-    # Unpack untracked-dir
     if [ "$category" = "untracked-dir" ] && [ -f "$BACKUP_DIR/untracked_dirs/${safe_name}.tar.gz" ]; then
       echo "   [folder]  Restoring non-git folder $rel_path..."
       tar -xzf "$BACKUP_DIR/untracked_dirs/${safe_name}.tar.gz" -C "$HOME"
     fi
 
-    # Restore .env if saved
-    if [ -f "$BACKUP_DIR/extras/${safe_name}.env" ] && [ -d "$target_dir" ]; then
+    if [ -f "$BACKUP_DIR/extras/${safe_name}.env" ] && [ -d "$target_dir" ] && [ ! -f "$target_dir/.env" ]; then
       echo "   [env]     Restoring $rel_path/.env"
       cp "$BACKUP_DIR/extras/${safe_name}.env" "$target_dir/.env"
     fi
   done < "$MANIFEST"
 
-  # 2. Restore extras
   if [ -f "$BACKUP_DIR/extras/cowork_skills.tar.gz" ]; then
     echo "   [extra]   Restoring ~/cowork_workspace/skills..."
     tar -xzf "$BACKUP_DIR/extras/cowork_skills.tar.gz" -C "$HOME"
+  fi
+  if [ -f "$BACKUP_DIR/extras/cowork_AGENTS.md" ]; then
+    mkdir -p "$HOME/cowork_workspace"
+    cp "$BACKUP_DIR/extras/cowork_AGENTS.md" "$HOME/cowork_workspace/AGENTS.md"
   fi
   if [ -f "$BACKUP_DIR/extras/custom-ca.pem" ]; then
     cp "$BACKUP_DIR/extras/custom-ca.pem" "$HOME/custom-ca.pem"

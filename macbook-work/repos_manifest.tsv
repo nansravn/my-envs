@@ -42,7 +42,6 @@ GitLab/fair-fare-tracker	dirty-remote	https://gitlab.com/google-cloud-ce/googler
 GitLab/gemini-benchmark	dirty-remote	git@gitlab.com:google-cloud-ce/googlers/renanvn/gemini-benchmark.git	main	2	0
 GitLab/gemini-process-automation	dirty-remote	https://gitlab.com/google-cloud-ce/googlers/renanvn/gemini-process-automation.git	main	2	0
 GitLab/gemini-quickstart	untracked-dir	NONE	NONE	0	0
-GitLab/google-cloud-sdk	untracked-dir	NONE	NONE	0	0
 GitLab/hackathon1	dirty-remote	https://gitlab.com/google-cloud-ce/communities/consumer-gen-ai/hackathon1.git	feature/revilasn	5	0
 GitLab/jigar-stt	untracked-dir	NONE	NONE	0	0
 GitLab/jigar-stt-gabriel	untracked-dir	NONE	NONE	0	0
@@ -56,4 +55,3 @@ GitLab/promptweaver-internal	dirty-remote	https://gitlab.com/renanvn/metaprompt.
 GitLab/promptweaver-notebooks	untracked-dir	NONE	NONE	0	0
 GitLab/query-retrieval-tool	dirty-remote	https://gitlab.com/google-cloud-ce/googlers/renanvn/query-retrieval-tool.git	main	20	1
 GitLab/seed	untracked-dir	NONE	NONE	0	0
-GitLab/terminal-configuration	untracked-dir	NONE	NONE	0	0

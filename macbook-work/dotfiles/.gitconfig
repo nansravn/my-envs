@@ -1,6 +1,28 @@
+[init]
+	defaultBranch = main
+[pull]
+	rebase = true
+[push]
+	autoSetupRemote = true
+	default = simple
+[fetch]
+	prune = true
+[rebase]
+	autoStash = true
+[color]
+	ui = auto
+[alias]
+	st = status
+	co = checkout
+	br = branch
+	ci = commit
+	lg = log --oneline --graph --decorate --all
+	last = log -1 HEAD
+	unstage = reset HEAD --
+	amend = commit --amend --no-edit
 [user]
-	email = your-email@example.com
 	name = Renan Vilas Novas
+	email = your-email@example.com
 [credential "https://github.com"]
 	helper = 
 	helper = !/opt/homebrew/bin/gh auth git-credential

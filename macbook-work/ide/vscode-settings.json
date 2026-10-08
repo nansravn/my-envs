@@ -2,12 +2,9 @@
     "editor.fontFamily": "MesloLGM Nerd Font",
     "diffEditor.codeLens": true,
     "explorer.confirmDragAndDrop": false,
-    "cloudcode.project": "query-retrieval-tool",
     "cloudcode.autoDependencies": "off",
     "cloudcode.updateChannel": "Insiders",
     "git.autofetch": true,
     "geminicodeassist.updateChannel": "Insiders",
-    "geminicodeassist.project": "project-pt-internal",
-    "geminicodeassist.displayInlineContextHint": false,
-    "http.systemCertificates": false
+    "geminicodeassist.displayInlineContextHint": false
 }
